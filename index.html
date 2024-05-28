@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO chat</title>
+    <style>
+        body {
+            margin: 0;
+            padding-bottom: 3rem;
+        }
+
+        #form {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 0.25rem;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            height: 3rem;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        #input {
+            border: none;
+            padding: 0 1rem;
+            flex-grow: 1;
+            border-radius: 2rem;
+            margin: 0.25rem;
+        }
+
+        #input:focus {
+            outline: none;
+        }
+
+        #form>button {
+            background: #333;
+            border: none;
+            padding: 0 1rem;
+            margin: 0.25rem;
+            border-radius: 3px;
+            outline: none;
+            color: #fff;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow-y: scroll;
+            max-height: 80vh;
+        }
+
+        #messages>li {
+            padding: 0.5rem 1rem;
+        }
+
+        #messages>li:nth-child(odd) {
+            background: #efefef;
+        }
+
+        #rooms {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #rooms>li {
+            padding: 0.5rem 1rem;
+        }
+
+        #rooms>li:nth-child(odd) {
+            background: #efefef;
+        }
+    </style>
+</head>
+
+<body>
+
+    <ul id="rooms">
+        <li><button onclick="joinRoom('room1')">Join Room 1</button></li>
+        <li><button onclick="joinRoom('room2')">Join Room 2</button></li>
+        <li><button onclick="leaveRoom('room1')">Leave Room 1</button></li>
+        <li><button onclick="leaveRoom('room2')">Leave Room 2</button></li>
+    </ul>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="input" autocomplete="off" placeholder="Type your message here..." /><button>Send</button>
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const username = prompt("Enter your username:");
+
+        const generalSocket = io('/general');
+        let currentRoom = 'general';
+
+        if (username) {
+            generalSocket.emit('set username', username);
+        }
+
+        generalSocket.on('connect', () => {
+            console.log('Connected to general namespace');
+        });
+
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+        const messages = document.getElementById('messages');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (input.value && currentRoom) {
+                generalSocket.emit('chat message', { room: currentRoom, msg: input.value });
+                input.value = '';
+            }
+        });
+
+        generalSocket.on('chat message', (data) => {
+            appendMessage(data);
+        });
+
+        const appendMessage = (data) => {
+            const item = document.createElement('li');
+            item.textContent = `${data.username}: ${data.msg}`;
+            messages.appendChild(item);
+            messages.scrollTop = messages.scrollHeight; 
+        };
+
+        const joinRoom = (room) => {
+            generalSocket.emit('join room', room);
+            currentRoom = room;
+            messages.innerHTML = ''; 
+        };
+
+        const leaveRoom = (room) => {
+            generalSocket.emit('leave room', room);
+            currentRoom = '';
+            messages.innerHTML = '';
+        };
+
+        generalSocket.on('broadcast', (data) => {
+            appendBroadcast(data.message);
+        });
+
+        const appendBroadcast = (message) => {
+            const item = document.createElement('li');
+            item.textContent = message;
+            messages.appendChild(item);
+            messages.scrollTop = messages.scrollHeight; 
+        };
+    </script>
+</body>
+
+</html>
